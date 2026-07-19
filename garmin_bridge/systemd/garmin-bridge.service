@@ -1,0 +1,33 @@
+[Unit]
+Description=garmin_bridge (a2zwarehouse wearable ingest)
+After=network-online.target postgresql.service
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=bridge
+Group=bridge
+WorkingDirectory=/opt/garmin_bridge
+EnvironmentFile=/opt/garmin_bridge/.env
+ExecStart=/opt/garmin_bridge/.venv/bin/uvicorn app.main:app --host 127.0.0.1 --port 8000
+Restart=on-failure
+RestartSec=3
+
+# Hardening
+NoNewPrivileges=true
+ProtectSystem=strict
+ProtectHome=true
+PrivateTmp=true
+ReadWritePaths=/opt/garmin_bridge
+
+[Install]
+WantedBy=multi-user.target
+
+# Deploy notes:
+#   1. sudo useradd -r -s /bin/false bridge
+#   2. Clone repo to /opt/garmin_bridge, `uv sync` into .venv
+#   3. Copy .env.example to /opt/garmin_bridge/.env and fill in
+#   4. Front with Caddy/nginx:
+#        garmin-bridge.a2zwarehouse.example { reverse_proxy 127.0.0.1:8000 }
+#   5. sudo systemctl enable --now garmin-bridge
+#   6. Register {PUBLIC_BASE_URL}/webhooks/wearable in Terra/Garmin portals
