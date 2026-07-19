@@ -1,0 +1,59 @@
+<!doctype html>
+<html>
+  <head>
+    <meta charset="utf-8">
+    <title>garmin_bridge dashboard</title>
+    <style>
+      body { font-family: system-ui, sans-serif; max-width: 960px; margin: 2rem auto; padding: 0 1rem; }
+      h1 { margin-bottom: 0.25rem; }
+      table { width: 100%; border-collapse: collapse; margin: 1rem 0; }
+      th, td { padding: 0.4rem 0.6rem; text-align: left; border-bottom: 1px solid #eee; }
+      .muted { color: #666; }
+      .badge { display: inline-block; padding: 2px 8px; border-radius: 4px; background: #eef; font-size: 0.85em; }
+    </style>
+  </head>
+  <body>
+    <h1>garmin_bridge</h1>
+    <p class="muted">Wearable ingest for a2zwarehouse — scaffolded, not yet wired to live credentials.</p>
+
+    <h2>Connected accounts</h2>
+    {% if accounts %}
+      <table>
+        <thead><tr><th>User</th><th>Provider</th><th>Connected</th></tr></thead>
+        <tbody>
+          {% for a in accounts %}
+          <tr>
+            <td>{{ a.user_id }}</td>
+            <td><span class="badge">{{ a.provider }}</span></td>
+            <td>{{ a.connected_at }}</td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    {% else %}
+      <p class="muted">No accounts connected yet. POST /oauth/connect to start.</p>
+    {% endif %}
+
+    <h2>Recent daily summaries</h2>
+    {% if dailies %}
+      <table>
+        <thead><tr><th>Day</th><th>Steps</th><th>Resting HR</th><th>Avg stress</th></tr></thead>
+        <tbody>
+          {% for d in dailies %}
+          <tr>
+            <td>{{ d.day }}</td>
+            <td>{{ d.steps or "—" }}</td>
+            <td>{{ d.resting_hr or "—" }}</td>
+            <td>{{ d.avg_stress or "—" }}</td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    {% else %}
+      <p class="muted">No daily summaries yet.</p>
+    {% endif %}
+
+    <h2>Recent HR samples ({{ hr|length }})</h2>
+    <p class="muted">First 500 samples in the last 14 days. Chart TBD.</p>
+  </body>
+</html>
