@@ -15,7 +15,18 @@ target network** (a Linux box / WSL2 / the gateway Pi). Run Claude Code there
 and it can drive these scripts directly; or run them yourself and commit the
 results back to the repo.
 
-## Requirements
+## Two editions — pick what your audit host runs
+
+| Edition | File | Needs | Depth |
+|---------|------|-------|-------|
+| **Linux / WSL** | `tas_audit.sh` + `tas_report.py` | `nmap` (+ python3) | Full: service/version, OS, UDP, TLS + NSE scripts |
+| **Windows PowerShell** | `tas_audit.ps1` | nothing — built-in only | Discovery + TCP port audit + web banner + heuristic findings |
+
+Use the Linux edition where you can (much deeper). Use the PowerShell edition
+on a locked-down Windows box where you can't install nmap/WSL — it needs no
+admin and no installs.
+
+### Linux / WSL edition
 
 ```bash
 sudo apt update && sudo apt install -y nmap
@@ -24,6 +35,21 @@ sudo apt update && sudo apt install -y nmap
 
 Run as **root/sudo** for the full audit (SYN scan, UDP, OS detection).
 Unprivileged runs fall back to a TCP connect scan and skip UDP/OS.
+
+### Windows PowerShell edition
+
+No installation. From the `audit` folder on a machine on the target LAN:
+
+```powershell
+.\tas_audit.ps1 -Subnet 192.168.19 -Target 192.168.19.64
+.\tas_audit.ps1 -Subnet 192.168.19          # sweep + audit every live host
+```
+
+If PowerShell blocks the script, allow it for the current session only:
+```powershell
+Set-ExecutionPolicy -Scope Process -ExecutionPolicy Bypass
+```
+Output goes to `audit/reports/run-<timestamp>/report.md`, same as the Linux edition.
 
 ## Usage
 
