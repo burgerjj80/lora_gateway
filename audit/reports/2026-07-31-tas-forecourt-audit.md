@@ -27,7 +27,7 @@ single flat `/24`.
 |----|-----|--------------|----------------|-----------------|
 | 192.168.19.1 | 34-fa-40-0d-b8-0a | Ubiquiti | 443 | Gateway / router (HTTPS admin) |
 | 192.168.19.5 | e0-23-ff-9e-0b-02 | — | none of scanned | Unidentified |
-| 192.168.19.6 | 00-90-e8-a5-a8-c2 | Moxa | 22, 23, 80, 443, 502 | Industrial serial-to-Ethernet gateway (Modbus) |
+| 192.168.19.6 | 00-90-e8-a5-a8-c2 | Moxa | 22, 23, 80, 443, 502, 44818 | Industrial serial-to-Ethernet gateway (Modbus + EtherNet/IP) |
 | 192.168.19.40 | 30-b8-51-43-7d-09 | — | 102 | S7 / ISO-TSAP device (likely controller) |
 | 192.168.19.41 | 30-b8-51-43-7d-23 | — | 102 | S7 / ISO-TSAP device |
 | 192.168.19.42 | 30-b8-51-43-7c-d5 | — | 102 | S7 / ISO-TSAP device |
@@ -37,9 +37,9 @@ single flat `/24`.
 | 192.168.19.64 | 00-21-0e-03-73-9d | Orpak | 443 | **Orpay 1000 payment terminal** |
 | 192.168.19.65 | 00-21-0e-03-73-b8 | Orpak | 443 | **Orpay 1000 payment terminal** |
 | 192.168.19.66 | 00-21-0e-03-73-9c | Orpak | 443 | **Orpay 1000 payment terminal** |
-| 192.168.19.100 | 58-c1-7a-50-c4-01 | — | 22, 80, 443 | Unidentified controller (web+SSH) |
-| 192.168.19.101 | 58-c1-7a-50-c4-ed | — | 22, 80, 443 | Unidentified controller (web+SSH) |
-| 192.168.19.102 | 58-c1-7a-50-bd-5f | — | 22, 80, 443 | Unidentified controller (web+SSH) |
+| 192.168.19.100 | 58-c1-7a-50-c4-01 | Cambium | 22, 80, 443 | Cambium ePMP wireless radio (dropbear SSH) |
+| 192.168.19.101 | 58-c1-7a-50-c4-ed | Cambium | 22, 80, 443 | Cambium ePMP wireless radio (`Server: Cambium HTTP Server`, title `ePMP`) |
+| 192.168.19.102 | 58-c1-7a-50-bd-5f | Cambium | 22, 80, 443 | Cambium ePMP wireless radio |
 | 192.168.19.130 | (this host) | — | — | Operator workstation (dual-homed, see below) |
 | 192.168.19.240 | bc-0f-f3-ca-e1-a8 | — | none of scanned | Unidentified |
 | 192.168.19.245 | 98-e7-f4-05-0a-db | HP | 80, 443, 8080, 9100 | HP LaserJet Pro M501dn (printer) |
@@ -70,20 +70,24 @@ Overall the payment terminals are the **best-hardened devices on the network**.
 | ID | Sev | Host(s) | Finding | Remediation |
 |----|-----|---------|---------|-------------|
 | N-1 | HIGH | .6, .50 | **Telnet (23) exposed** — cleartext admin credentials on an industrial gateway and a network switch. | Disable Telnet; use SSH. If a device is Telnet-only, isolate it on a management VLAN with strict ACLs. |
-| N-2 | HIGH | .6 | **Modbus (502) exposed** — Modbus has no authentication; any LAN host can read/write controller registers. | Restrict 502 to the specific control host(s) via firewall/ACL; segment OT away from general LAN and the CDE. |
+| N-2 | HIGH | .6 | **Modbus (502) + EtherNet/IP (44818) exposed** — both protocols have no authentication; any LAN host can read/write controller registers/tags. | Restrict 502 and 44818 to the specific control host(s) via firewall/ACL; segment OT away from general LAN and the CDE. |
 | N-3 | MEDIUM | .40–.43 | **S7 / ISO-TSAP (102) exposed** on four controllers — legacy S7 has weak/no auth; LAN access can equal control-plane access. | Firewall port 102 to authorized engineering hosts only; segment these controllers; apply vendor auth/hardening if available. |
 | N-4 | MEDIUM | all | **Flat network / no segmentation** — payment terminals (CDE) share one `/24` with PLCs, industrial gateways, a printer, and office gear. | Segment the CDE from OT and office networks per PCI-DSS; enforce inter-VLAN firewalling; limit the payment segment to payment devices. |
 | N-5 | MEDIUM | .130 | **Dual-homed operator workstation** — bridges `192.168.23.0/24` and `192.168.19.0/24`, potentially straddling the CDE boundary. | Remove the bridge; if cross-segment access is required, route it through a firewall/jump host with logging. A workstation should not span the payment segment and another zone. |
-| N-6 | MEDIUM | .100–.102 | **Cleartext HTTP (80) management** alongside HTTPS on three controllers. | Serve management over HTTPS only; redirect 80→443; verify auth is enforced. |
+| N-6 | MEDIUM | .100–.102 | **Cleartext HTTP (80) management on the Cambium ePMP wireless radios**, alongside HTTPS and dropbear SSH. Wireless backhaul management on the payment segment. | Serve management over HTTPS only; redirect 80→443; enforce strong admin creds; keep ePMP firmware current; restrict radio management to an admin VLAN. |
 | N-7 | LOW | .245 | **Printer on the payment segment** with web (80/443/8080) and raw print (9100) exposed. Printers are common pivot/exfil points. | Move the printer off the payment segment; set an admin password; update firmware; disable unused services. |
 | N-8 | INFO | .1, .50 | Network infrastructure (Ubiquiti) exposes HTTPS/SSH admin. | Ensure strong unique admin credentials, current firmware, and management restricted to an admin VLAN. |
 
 ## Unidentified hosts to resolve
 
-`.5`, `.63`, `.100–.102`, `.240` were not positively identified. In particular
-`.100–.102` (three web+SSH controllers) or the Moxa `.6` are the leading
-candidates for the **"enhance controller"** referenced for this project.
-A follow-up banner/service probe is needed to name them (see next audit step).
+A follow-up banner probe identified `.100–.102` as **Cambium ePMP wireless
+radios** (not controllers). Still unidentified: **`.5`**, **`.63`** (SSH only),
+**`.240`** (no scanned ports open), and the four **`.40–.43`** S7/ISO-TSAP
+devices (protocol identified, product not). **No device on the subnet
+self-identifies as an "enhance controller"** — it is likely one of these
+remaining unknowns (or is powered off / on the `.23.x` segment). A wider probe
+of `.5/.63/.240/.40` is the next step; confirming what the enhance controller
+*is* (vendor/function) would let us match it to a specific host.
 
 ## Recommended priorities
 
