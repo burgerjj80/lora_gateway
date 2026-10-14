@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<settings>
+  <setting
+      propertyKey="@Properties.ingest_url"
+      title="@Strings.IngestUrlLabel">
+    <settingConfig type="alphaNumeric" required="true"/>
+  </setting>
+  <setting
+      propertyKey="@Properties.ingest_token"
+      title="@Strings.IngestTokenLabel">
+    <settingConfig type="alphaNumeric" required="true"/>
+  </setting>
+</settings>
