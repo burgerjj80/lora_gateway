@@ -9,10 +9,10 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from ..config import get_settings
 from ..db import SessionLocal, get_session
 from ..fetchers import run_fetch_and_store
-from ..models import LoraDevice, LoraUplink, WearableAccount
+from ..models import HrSample, LoraDevice, LoraUplink, WatchDevice, WearableAccount
 from ..providers import Provider, get_provider
 from ..providers.base import ConnectionTokens, FetchJob
-from ..schemas import LoraUplinkIn
+from ..schemas import ConnectIqIn, LoraUplinkIn
 
 log = logging.getLogger(__name__)
 router = APIRouter()
@@ -111,3 +111,61 @@ async def lora_uplink(
     )
     await session.commit()
     return {"status": "ok"}
+
+
+@router.post("/connectiq")
+async def connectiq_ingest(
+    payload: ConnectIqIn,
+    request: Request,
+    session: AsyncSession = Depends(get_session),
+):
+    """Ingest from the a2zbridge Connect IQ widget running on a Fenix.
+
+    Bearer-token authenticated with CONNECTIQ_INGEST_TOKEN; the same value
+    goes into the widget's app settings.
+
+    Device-to-user mapping is first-contact-wins: the first POST for a new
+    device_id creates a WatchDevice with no user_id attached, which you then
+    bind manually (admin UI or SQL) to the real user. All subsequent samples
+    are stored against that user.
+    """
+    settings = get_settings()
+    if not settings.connectiq_ingest_token:
+        raise HTTPException(503, "CONNECTIQ_INGEST_TOKEN not configured")
+    if request.headers.get("authorization", "") != f"Bearer {settings.connectiq_ingest_token}":
+        raise HTTPException(401, "Bad token")
+
+    now = datetime.now(timezone.utc)
+    device = await session.get(WatchDevice, payload.device_id)
+    if device is None:
+        device = WatchDevice(
+            device_id=payload.device_id,
+            first_seen_at=now,
+            last_seen_at=now,
+            last_battery_pct=payload.watch.battery_pct if payload.watch else None,
+        )
+        session.add(device)
+    else:
+        device.last_seen_at = now
+        if payload.watch and payload.watch.battery_pct is not None:
+            device.last_battery_pct = payload.watch.battery_pct
+
+    if device.user_id is None:
+        # Unpaired watch — store the ping so first-contact is visible, but
+        # don't drop HR into a user-scoped table yet.
+        await session.commit()
+        return {"status": "accepted", "paired": False}
+
+    session.add_all(
+        HrSample(user_id=device.user_id, ts=s.ts, bpm=s.bpm) for s in payload.samples.hr
+    )
+    await session.commit()
+    log.info(
+        "connectiq: device=%s user=%d hr=%d stress=%s bb=%s",
+        payload.device_id,
+        device.user_id,
+        len(payload.samples.hr),
+        payload.samples.stress,
+        payload.samples.body_battery,
+    )
+    return {"status": "ok", "paired": True, "hr_samples": len(payload.samples.hr)}

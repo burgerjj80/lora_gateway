@@ -147,6 +147,20 @@ class LoraUplink(Base):
     payload: Mapped[dict] = mapped_column(JSON)
 
 
+# ---- Connect IQ watches (watch posts directly, bypassing provider cloud) ---
+
+
+class WatchDevice(Base):
+    __tablename__ = "watch_devices"
+
+    device_id: Mapped[str] = mapped_column(String(64), primary_key=True)
+    user_id: Mapped[int | None] = mapped_column(ForeignKey("users.id", ondelete="SET NULL"))
+    label: Mapped[str | None] = mapped_column(String(255))
+    first_seen_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
+    last_seen_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
+    last_battery_pct: Mapped[float | None] = mapped_column(Float)
+
+
 # ---- Alerts ----------------------------------------------------------------
 
 

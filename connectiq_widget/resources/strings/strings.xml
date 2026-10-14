@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<strings>
+  <string id="AppName">a2zbridge</string>
+  <string id="IngestUrlLabel">Ingest URL</string>
+  <string id="IngestUrlPrompt">HTTPS URL of /webhooks/connectiq on your garmin_bridge</string>
+  <string id="IngestTokenLabel">Ingest Token</string>
+  <string id="IngestTokenPrompt">Shared bearer token (CONNECTIQ_INGEST_TOKEN)</string>
+</strings>

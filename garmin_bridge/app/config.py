@@ -28,6 +28,7 @@ class Settings(BaseSettings):
     alert_slack_webhook: str = ""
 
     lora_ingest_token: str = ""
+    connectiq_ingest_token: str = ""
 
 
 @lru_cache

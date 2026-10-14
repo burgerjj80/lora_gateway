@@ -55,6 +55,32 @@ class LoraUplinkIn(BaseModel):
     payload: dict[str, Any]
 
 
+class ConnectIqHrSample(BaseModel):
+    ts: datetime
+    bpm: int
+
+
+class ConnectIqSamples(BaseModel):
+    hr: list[ConnectIqHrSample] = []
+    stress: int | None = None
+    body_battery: int | None = None
+    steps_today: int | None = None
+    calories_today: int | None = None
+
+
+class ConnectIqWatch(BaseModel):
+    battery_pct: float | None = None
+
+
+class ConnectIqIn(BaseModel):
+    """Payload posted by the a2zbridge Connect IQ widget on each background wake."""
+
+    device_id: str
+    ts: datetime
+    watch: ConnectIqWatch | None = None
+    samples: ConnectIqSamples
+
+
 class DailyOut(BaseModel):
     day: date
     steps: int | None
